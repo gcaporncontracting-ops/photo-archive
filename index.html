@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Archive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{
+    --ink:#1c1a17;
+    --paper:#efe8d8;
+    --brass:#b8935a;
+    --brass-dim:#8a6a3d;
+    --deep:#12100e;
+    --line: rgba(239,232,216,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--deep);color:var(--paper);font-family:'Space Mono',monospace;}
+  #app{position:relative;width:100%;height:100%;min-height:100vh;overflow:hidden;}
+  .screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity .5s ease;}
+  .hidden{display:none !important;}
+
+  /* ---------- TITLE ---------- */
+  #title-screen{
+    background-size:cover;
+    background-position:center;
+    background-image:linear-gradient(180deg, rgba(10,9,8,0.35) 0%, rgba(10,9,8,0.55) 55%, rgba(10,9,8,0.92) 100%), url('https://lh3.googleusercontent.com/d/1Rks1rYNw_urWLpe6kadWUUnf0z1OaLYH=w1920');
+    text-align:center;
+    padding:6vh 6vw;
+  }
+  .eyebrow{
+    letter-spacing:.35em;
+    text-transform:uppercase;
+    font-size:.7rem;
+    color:var(--brass);
+    margin-bottom:1.2rem;
+  }
+  h1.title{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:clamp(2.6rem, 7vw, 5.2rem);
+    margin:0 0 .4rem 0;
+    letter-spacing:.01em;
+  }
+  .subtitle{
+    font-style:italic;
+    font-family:'Playfair Display', serif;
+    color:var(--paper);
+    opacity:.75;
+    font-size:1.05rem;
+    margin-bottom:3.2rem;
+  }
+  .categories{
+    display:flex;
+    gap:1.4rem;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .cat-btn{
+    border:1px solid var(--brass-dim);
+    background:rgba(18,16,14,0.35);
+    color:var(--paper);
+    padding:1.1rem 2.2rem;
+    font-family:'Space Mono',monospace;
+    font-size:.85rem;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    cursor:pointer;
+    position:relative;
+    transition:all .25s ease;
+  }
+  .cat-btn:hover{background:var(--brass);color:var(--deep);border-color:var(--brass);}
+  .cat-btn .num{display:block;font-family:'Playfair Display',serif;font-style:italic;font-size:1.3rem;color:var(--brass);margin-bottom:.3rem;}
+  .cat-btn:hover .num{color:var(--deep);}
+
+  .admin-link{
+    position:absolute;
+    bottom:1.2rem;
+    right:1.4rem;
+    font-size:.65rem;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:rgba(239,232,216,0.35);
+    text-decoration:none;
+    cursor:pointer;
+  }
+  .admin-link:hover{color:var(--brass);}
+
+  /* ---------- MODAL (guestbook) ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(8,7,6,0.88);
+    display:flex;align-items:center;justify-content:center;
+    z-index:50; padding:2rem;
+  }
+  .ledger{
+    background:var(--paper);
+    color:var(--ink);
+    width:100%;max-width:560px;
+    padding:2.6rem 2.4rem 2rem;
+    position:relative;
+    box-shadow:0 30px 80px rgba(0,0,0,0.6);
+  }
+  .ledger::before{
+    content:"";
+    position:absolute; left:0; right:0; top:0; height:6px;
+    background:repeating-linear-gradient(90deg, var(--brass) 0 14px, transparent 14px 22px);
+  }
+  .ledger h2{
+    font-family:'Playfair Display',serif;
+    font-style:italic;
+    font-weight:500;
+    font-size:1.7rem;
+    margin:.4rem 0 .2rem;
+  }
+  .ledger p.desc{
+    font-size:.8rem;
+    color:#5b5346;
+    margin-bottom:1.6rem;
+    line-height:1.5;
+  }
+  label{
+    display:block;
+    font-size:.68rem;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    color:#7a6f5c;
+    margin-bottom:.4rem;
+    margin-top:1.2rem;
+  }
+  input[type=email], textarea{
+    width:100%;
+    border:none;
+    border-bottom:2px solid #cbbf9f;
+    background:transparent;
+    font-family:'Space Mono',monospace;
+    font-size:.95rem;
+    color:var(--ink);
+    padding:.5rem .1rem;
+    resize:vertical;
+  }
+  textarea{min-height:110px;line-height:1.5;}
+  input:focus, textarea:focus{outline:none;border-bottom-color:var(--brass-dim);}
+  .wordcount{
+    text-align:right;
+    font-size:.68rem;
+    color:#8a7f68;
+    margin-top:.35rem;
+  }
+  .wordcount.ok{color:#2e6b3e;}
+  .ledger-actions{
+    margin-top:1.8rem;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .err{color:#a13b2b;font-size:.72rem;min-height:1rem;}
+  .sign-btn{
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    padding:.85rem 1.8rem;
+    font-family:'Space Mono',monospace;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    font-size:.78rem;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  .sign-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .sign-btn:not(:disabled):hover{background:var(--brass-dim);}
+
+  /* ---------- BLACK SCREEN ---------- */
+  #blackscreen{
+    position:fixed;inset:0;background:#000;z-index:999;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #blackscreen span{color:#141414;font-size:.7rem;letter-spacing:.2em;font-family:'Space Mono',monospace;}
+
+  /* ---------- GALLERY ---------- */
+  #gallery-screen{
+    position:absolute;inset:0;
+    background:var(--deep);
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+    padding:0;
+    overflow-y:auto;
+  }
+  .gallery-header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:2.4rem 3rem 1.2rem;
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;gap:1rem;
+  }
+  .gallery-header h2{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:500;
+    font-size:2.1rem;margin:0;color:var(--paper);
+  }
+  .gallery-header .count{color:var(--brass);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;}
+  .back-link{
+    color:var(--paper);opacity:.65;text-decoration:none;font-size:.75rem;
+    letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+  }
+  .back-link:hover{opacity:1;color:var(--brass);}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(230px,1fr));
+    gap:1.6rem;
+    padding:2rem 3rem 4rem;
+  }
+  .thumb{
+    aspect-ratio:4/5;
+    overflow:hidden;
+    position:relative;
+    cursor:pointer;
+    border:1px solid var(--line);
+  }
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s ease;}
+  .thumb:hover img{transform:scale(1.06);}
+  .thumb .tag{
+    position:absolute;bottom:0;left:0;right:0;
+    padding:.5rem .7rem;
+    background:linear-gradient(0deg, rgba(0,0,0,0.7), transparent);
+    font-size:.65rem;letter-spacing:.1em;color:var(--brass);
+  }
+
+  /* lightbox */
+  #lightbox{
+    position:fixed;inset:0;background:rgba(6,5,4,0.95);
+    z-index:80;display:flex;align-items:center;justify-content:center;
+    padding:3vh 3vw;
+  }
+  #lightbox img{max-width:100%;max-height:88vh;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+  #lightbox .close{
+    position:absolute;top:1.5rem;right:2rem;color:var(--paper);
+    font-size:.8rem;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;
+  }
+
+  /* ---------- ADMIN ---------- */
+  #admin-screen{
+    position:absolute;inset:0;background:var(--deep);
+    align-items:flex-start;justify-content:flex-start;
+    flex-direction:column;padding:0;overflow-y:auto;
+  }
+  .admin-inner{padding:3rem;width:100%;max-width:900px;margin:0 auto;}
+  .admin-inner h2{font-family:'Playfair Display',serif;font-style:italic;font-size:2rem;margin-bottom:1.6rem;}
+  table.entries{width:100%;border-collapse:collapse;font-size:.78rem;}
+  table.entries th, table.entries td{
+    text-align:left;padding:.7rem .6rem;border-bottom:1px solid var(--line);vertical-align:top;
+  }
+  table.entries th{color:var(--brass);text-transform:uppercase;letter-spacing:.08em;font-size:.65rem;}
+  .flag{color:#d15b3f;font-weight:bold;}
+  .code-gate{max-width:340px;margin:10vh auto;text-align:center;}
+  .code-gate input{text-align:center;letter-spacing:.3em;font-size:1.2rem;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TITLE SCREEN -->
+  <div id="title-screen" class="screen">
+    <div class="eyebrow">A Private Collection</div>
+    <h1 class="title">The Archive</h1>
+    <div class="subtitle">Three rooms. One life. Sign the book to enter.</div>
+    <div class="categories">
+      <button class="cat-btn" data-cat="leisure"><span class="num">I.</span>Leisure</button>
+      <button class="cat-btn" data-cat="sport"><span class="num">II.</span>Sport</button>
+      <button class="cat-btn" data-cat="work"><span class="num">III.</span>Work</button>
+    </div>
+    <div class="admin-link" id="admin-link">Registrar</div>
+  </div>
+
+  <!-- GALLERY SCREEN -->
+  <div id="gallery-screen" class="screen hidden">
+    <div class="gallery-header">
+      <div>
+        <div class="eyebrow" id="gallery-eyebrow">Room</div>
+        <h2 id="gallery-title">—</h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:1.4rem;">
+        <span class="count" id="gallery-count"></span>
+        <a class="back-link" id="back-link">&larr; Return to title</a>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <!-- ADMIN SCREEN -->
+  <div id="admin-screen" class="screen hidden">
+    <div class="admin-inner" id="admin-inner"></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+  // ---------------- DATA ----------------
+  const FOLDERS = {
+    leisure: {
+      label: "Leisure",
+      images: [
+        "1Rks1rYNw_urWLpe6kadWUUnf0z1OaLYH",
+        "11cLWfwsx6wm3vDoJh7_5og5DPWLXO3WP",
+        "1WJH9OPularrV9eCg3zS70HnxERFXW5d5",
+        "1mZ2LxwunWozlO9fBFWMXeE9ye2s6i2NC",
+        "1k9sJGqdVkIGTwbjSzSyhC2aS4fMAxeTI"
+      ]
+    },
+    sport: {
+      label: "Sport",
+      images: [
+        "1b53-GtIOfVSItVthB3rMAYUj4ptS4Uxj",
+        "1Eb7gQpQzO8a0lkxPY1EM8e9paTloSamY",
+        "17UcEJ9r1Yvfl-AigLwQo7imxNnM2FzMW",
+        "1pNDDZ-XscnNlm7qFS19ZTfM1JmmbSM8o",
+        "1T-bfCTipdk9ToEZHv_2K_MpLuBC0b9nk",
+        "15Y256pQ-lLe6G8QyDIafxmyqb5lIZ31p"
+      ]
+    },
+    work: {
+      label: "Work",
+      images: [
+        "1BefAM9FHLx_okIWNai2tBRLx_M4p_eRR",
+        "1LI_kCZa8y_tF1cpu0ZdImiDvBWaIhqcv"
+      ]
+    }
+  };
+
+  const ADMIN_CODE = "94172079";
+  const BANNED = /\b(petrol|kacela)\b/i;
+  const MIN_WORDS = 25;
+
+  // Same-origin API route, served by the Cloudflare Pages Function at functions/api/guestbook.js
+  const BACKEND_URL = "/api/guestbook";
+
+  function driveUrl(id, w){ return `https://lh3.googleusercontent.com/d/${id}=w${w||1200}`; }
+
+  // ---------------- STATE / STORAGE ----------------
+  let pendingCategory = null;
+
+  // "Signed once" is tracked per-browser via localStorage (no login system on a static site).
+  function hasSigned(){
+    return localStorage.getItem('archive-signed') === '1';
+  }
+
+  async function saveEntry(email, comment, category, flagged){
+    try{
+      await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ email, comment, category, flagged: !!flagged })
+      });
+      if(!flagged){
+        localStorage.setItem('archive-signed', '1');
+      }
+    }catch(e){ console.error('backend error', e); }
+  }
+
+  async function loadAllEntries(code){
+    try{
+      const res = await fetch(BACKEND_URL + '?code=' + encodeURIComponent(code));
+      const data = await res.json();
+      if(data.error) return { error: data.error };
+      return { entries: (data.entries || []).sort((a,b)=> new Date(b.ts) - new Date(a.ts)) };
+    }catch(e){
+      return { error: 'Could not reach the backend.' };
+    }
+  }
+
+  // ---------------- SCREEN SWITCHING ----------------
+  const screens = {
+    title: document.getElementById('title-screen'),
+    gallery: document.getElementById('gallery-screen'),
+    admin: document.getElementById('admin-screen'),
+  };
+  function show(name){
+    Object.values(screens).forEach(s=>s.classList.add('hidden'));
+    screens[name].classList.remove('hidden');
+  }
+
+  // ---------------- TITLE ----------------
+  document.querySelectorAll('.cat-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cat = btn.dataset.cat;
+      if(hasSigned()){
+        openGallery(cat);
+      } else {
+        pendingCategory = cat;
+        openGuestbook();
+      }
+    });
+  });
+
+  document.getElementById('admin-link').addEventListener('click', openAdmin);
+  document.getElementById('back-link').addEventListener('click', ()=> show('title'));
+
+  // ---------------- GUESTBOOK MODAL ----------------
+  function openGuestbook(){
+    const wrap = document.createElement('div');
+    wrap.className = 'overlay';
+    wrap.id = 'gb-overlay';
+    wrap.innerHTML = `
+      <div class="ledger">
+        <h2>Sign the Guestbook</h2>
+        <p class="desc">Every visitor to the archive leaves a mark before entering. An email, and a genuine note of at least ${MIN_WORDS} words — one time only.</p>
+        <label>Email</label>
+        <input type="email" id="gb-email" placeholder="you@example.com" autocomplete="email">
+        <label>Your comment</label>
+        <textarea id="gb-comment" placeholder="What brings you to the archive..."></textarea>
+        <div class="wordcount" id="gb-count">0 / ${MIN_WORDS} words</div>
+        <div class="ledger-actions">
+          <div class="err" id="gb-err"></div>
+          <button class="sign-btn" id="gb-submit" disabled>Sign &amp; Enter</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const emailEl = wrap.querySelector('#gb-email');
+    const commentEl = wrap.querySelector('#gb-comment');
+    const countEl = wrap.querySelector('#gb-count');
+    const submitBtn = wrap.querySelector('#gb-submit');
+    const errEl = wrap.querySelector('#gb-err');
+
+    function wordCount(str){
+      return (str.trim().match(/\S+/g) || []).length;
+    }
+    function validate(){
+      const wc = wordCount(commentEl.value);
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim());
+      countEl.textContent = `${wc} / ${MIN_WORDS} words`;
+      countEl.className = 'wordcount' + (wc >= MIN_WORDS ? ' ok' : '');
+      submitBtn.disabled = !(wc >= MIN_WORDS && emailOk);
+    }
+    emailEl.addEventListener('input', validate);
+    commentEl.addEventListener('input', validate);
+
+    submitBtn.addEventListener('click', async ()=>{
+      const email = emailEl.value.trim();
+      const comment = commentEl.value.trim();
+      const flagged = BANNED.test(comment);
+
+      await saveEntry(email, comment, pendingCategory, flagged);
+
+      if(flagged){
+        triggerBlackscreen();
+        return;
+      }
+      wrap.remove();
+      openGallery(pendingCategory);
+    });
+  }
+
+  function triggerBlackscreen(){
+    const b = document.createElement('div');
+    b.id = 'blackscreen';
+    b.innerHTML = '<span>refresh to continue</span>';
+    document.body.innerHTML = '';
+    document.body.appendChild(b);
+  }
+
+  // ---------------- GALLERY ----------------
+  function openGallery(cat){
+    const folder = FOLDERS[cat];
+    document.getElementById('gallery-eyebrow').textContent = 'Room ' + ({leisure:'I',sport:'II',work:'III'})[cat];
+    document.getElementById('gallery-title').textContent = folder.label;
+    document.getElementById('gallery-count').textContent = folder.images.length + ' photographs';
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    folder.images.forEach((id, i)=>{
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.innerHTML = `<img src="${driveUrl(id, 500)}" loading="lazy" alt="${folder.label} ${i+1}"><div class="tag">${folder.label.toUpperCase()} — ${String(i+1).padStart(2,'0')}</div>`;
+      div.addEventListener('click', ()=> openLightbox(id));
+      grid.appendChild(div);
+    });
+    show('gallery');
+  }
+
+  function openLightbox(id){
+    const lb = document.createElement('div');
+    lb.id = 'lightbox';
+    lb.innerHTML = `<span class="close">close ✕</span><img src="${driveUrl(id, 1600)}">`;
+    lb.addEventListener('click', ()=> lb.remove());
+    document.body.appendChild(lb);
+  }
+
+  // ---------------- ADMIN ----------------
+  function openAdmin(){
+    const inner = document.getElementById('admin-inner');
+    inner.innerHTML = `
+      <div class="code-gate">
+        <div class="eyebrow">Registrar Access</div>
+        <label>Enter code</label>
+        <input type="password" id="admin-code" placeholder="••••••••">
+        <div class="err" id="admin-err" style="margin-top:.8rem;"></div>
+        <button class="sign-btn" style="margin-top:1.4rem;" id="admin-go">Enter</button>
+      </div>
+    `;
+    show('admin');
+    document.getElementById('admin-go').addEventListener('click', async ()=>{
+      const val = document.getElementById('admin-code').value.trim();
+      if(val !== ADMIN_CODE){
+        document.getElementById('admin-err').textContent = 'Incorrect code.';
+        return;
+      }
+      document.getElementById('admin-err').textContent = 'Loading…';
+      const result = await loadAllEntries(val);
+      if(result.error){
+        document.getElementById('admin-err').textContent = result.error;
+        return;
+      }
+      renderAdminTable(result.entries);
+    });
+  }
+
+  function renderAdminTable(entries){
+    const inner = document.getElementById('admin-inner');
+    if(entries.length === 0){
+      inner.innerHTML = `<h2>Guestbook</h2><p>No entries yet.</p><a class="back-link" onclick="location.reload()">&larr; Back</a>`;
+      return;
+    }
+    let rows = entries.map(e => `
+      <tr>
+        <td>${new Date(e.ts).toLocaleString()}</td>
+        <td>${escapeHtml(e.email)}</td>
+        <td>${(e.category||'').toUpperCase()}</td>
+        <td>${escapeHtml(e.comment)}</td>
+        <td>${e.flagged ? '<span class="flag">BLOCKED</span>' : 'OK'}</td>
+      </tr>
+    `).join('');
+    inner.innerHTML = `
+      <h2>Guestbook — ${entries.length} entries</h2>
+      <table class="entries">
+        <thead><tr><th>Time</th><th>Email</th><th>Room</th><th>Comment</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top:2rem;"><a class="back-link" onclick="location.reload()">&larr; Back to title</a></p>
+    `;
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+})();
+</script>
+</body>
+</html>
