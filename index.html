@@ -267,6 +267,8 @@
       <button class="cat-btn" data-cat="leisure"><span class="num">I.</span>Leisure</button>
       <button class="cat-btn" data-cat="sport"><span class="num">II.</span>Sport</button>
       <button class="cat-btn" data-cat="work"><span class="num">III.</span>Work</button>
+      <button class="cat-btn" data-cat="childhood"><span class="num">IV.</span>Childhood</button>
+      <button class="cat-btn" data-cat="pets"><span class="num">V.</span>Pets</button>
     </div>
     <div class="admin-link" id="admin-link">Registrar</div>
   </div>
@@ -298,35 +300,32 @@
 
   // ---------------- DATA ----------------
   const FOLDERS = {
-    leisure: {
-      label: "Leisure",
-      images: [
-        "1Rks1rYNw_urWLpe6kadWUUnf0z1OaLYH",
-        "11cLWfwsx6wm3vDoJh7_5og5DPWLXO3WP",
-        "1WJH9OPularrV9eCg3zS70HnxERFXW5d5",
-        "1mZ2LxwunWozlO9fBFWMXeE9ye2s6i2NC",
-        "1k9sJGqdVkIGTwbjSzSyhC2aS4fMAxeTI"
-      ]
-    },
-    sport: {
-      label: "Sport",
-      images: [
-        "1b53-GtIOfVSItVthB3rMAYUj4ptS4Uxj",
-        "1Eb7gQpQzO8a0lkxPY1EM8e9paTloSamY",
-        "17UcEJ9r1Yvfl-AigLwQo7imxNnM2FzMW",
-        "1pNDDZ-XscnNlm7qFS19ZTfM1JmmbSM8o",
-        "1T-bfCTipdk9ToEZHv_2K_MpLuBC0b9nk",
-        "15Y256pQ-lLe6G8QyDIafxmyqb5lIZ31p"
-      ]
-    },
-    work: {
-      label: "Work",
-      images: [
-        "1BefAM9FHLx_okIWNai2tBRLx_M4p_eRR",
-        "1LI_kCZa8y_tF1cpu0ZdImiDvBWaIhqcv"
-      ]
-    }
+    leisure:   { label: "Leisure",   folderId: "1eAP-Cw3HOp-RzhprhFM1S5hpdfxmz4O1" },
+    sport:     { label: "Sport",     folderId: "1sXJd89n6VPgvy2hwNr_g4S1o6CNod2NW" },
+    work:      { label: "Work",      folderId: "1LGjJxIU4MrnXEV5DEc-K7e6oqH2XrdJb" },
+    childhood: { label: "Childhood", folderId: "13aiTKaOE0a4Ctz4jAnycdzdoqkVAWETC" },
+    pets:      { label: "Pets",      folderId: "1OIedvh3PRDVVAL1nHh9yEyBIx3kZoAKa" }
   };
+
+  // Restricted to photo-archive-3z4.pages.dev/* — see Google Cloud Console > Credentials
+  const DRIVE_API_KEY = "AIzaSyCICmLJb14gT4KYGbMLmAO2ZiqdTVuPK8g";
+
+  async function fetchFolderImages(folderId){
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed = false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&orderBy=name&key=${DRIVE_API_KEY}`;
+    try{
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data.error){
+        console.error('Drive API error', data.error);
+        return [];
+      }
+      return (data.files || []).map(f => f.id);
+    }catch(e){
+      console.error('Drive fetch failed', e);
+      return [];
+    }
+  }
 
   const ADMIN_CODE = "94172079";
   const BANNED = /\b(petrol|kacela)\b/i;
@@ -462,21 +461,32 @@
   }
 
   // ---------------- GALLERY ----------------
-  function openGallery(cat){
+  async function openGallery(cat){
     const folder = FOLDERS[cat];
-    document.getElementById('gallery-eyebrow').textContent = 'Room ' + ({leisure:'I',sport:'II',work:'III'})[cat];
+    document.getElementById('gallery-eyebrow').textContent = 'Room ' + ({leisure:'I',sport:'II',work:'III',childhood:'IV',pets:'V'})[cat];
     document.getElementById('gallery-title').textContent = folder.label;
-    document.getElementById('gallery-count').textContent = folder.images.length + ' photographs';
+    document.getElementById('gallery-count').textContent = 'Loading…';
     const grid = document.getElementById('grid');
+    grid.innerHTML = '<p style="color:var(--paper);opacity:.6;padding:2rem;">Loading photographs…</p>';
+    show('gallery');
+
+    const ids = await fetchFolderImages(folder.folderId);
+
+    document.getElementById('gallery-count').textContent = ids.length + ' photograph' + (ids.length === 1 ? '' : 's');
     grid.innerHTML = '';
-    folder.images.forEach((id, i)=>{
+
+    if(ids.length === 0){
+      grid.innerHTML = '<p style="color:var(--paper);opacity:.6;padding:2rem;">No photographs found in this room yet.</p>';
+      return;
+    }
+
+    ids.forEach((id, i)=>{
       const div = document.createElement('div');
       div.className = 'thumb';
       div.innerHTML = `<img src="${driveUrl(id, 500)}" loading="lazy" alt="${folder.label} ${i+1}"><div class="tag">${folder.label.toUpperCase()} — ${String(i+1).padStart(2,'0')}</div>`;
       div.addEventListener('click', ()=> openLightbox(id));
       grid.appendChild(div);
     });
-    show('gallery');
   }
 
   function openLightbox(id){
