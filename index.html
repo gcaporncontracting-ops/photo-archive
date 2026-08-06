@@ -155,6 +155,11 @@
     align-items:center;
   }
   .err{color:#a13b2b;font-size:.72rem;min-height:1rem;}
+  input[type=file]{
+    width:100%;font-family:'Space Mono',monospace;font-size:.85rem;
+    color:var(--ink);margin-top:.4rem;
+  }
+  .success-msg{color:#2e6b3e;font-size:.8rem;line-height:1.5;}
   .sign-btn{
     background:var(--ink);
     color:var(--paper);
@@ -272,6 +277,7 @@
       <button class="cat-btn" data-cat="family"><span class="num">VI.</span>Family</button>
       <button class="cat-btn" data-cat="locked"><span class="num">VII.</span>Another Life</button>
     </div>
+    <div class="admin-link" id="contribute-link" style="left:1.4rem;right:auto;">Share a photo</div>
     <div class="admin-link" id="admin-link">Registrar</div>
   </div>
 
@@ -369,6 +375,27 @@
     }
   }
 
+  async function loadPendingUploads(code){
+    try{
+      const res = await fetch('/api/uploads?action=list&code=' + encodeURIComponent(code));
+      const data = await res.json();
+      if(data.error) return { error: data.error };
+      return { entries: data.entries || [] };
+    }catch(e){
+      return { error: 'Could not reach the backend.' };
+    }
+  }
+
+  async function reviewUpload(code, id, action){
+    try{
+      await fetch('/api/uploads', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ code, id, action })
+      });
+    }catch(e){ console.error('review failed', e); }
+  }
+
   // ---------------- SCREEN SWITCHING ----------------
   const screens = {
     title: document.getElementById('title-screen'),
@@ -397,7 +424,7 @@
     wrap.innerHTML = `
       <div class="ledger">
         <h2>${label}</h2>
-        <p class="desc">Some rooms stay shut for a reason. What does he feel? Enter the password to continue.</p>
+        <p class="desc">Some rooms stay shut for a reason. Hint: what might be felt. Enter the password to continue.</p>
         <label>Password</label>
         <input type="password" id="pw-input" placeholder="••••••••">
         <div class="err" id="pw-err" style="margin-top:.8rem;"></div>
@@ -436,7 +463,69 @@
   });
 
   document.getElementById('admin-link').addEventListener('click', openAdmin);
+  document.getElementById('contribute-link').addEventListener('click', openContribute);
   document.getElementById('back-link').addEventListener('click', ()=> show('title'));
+
+  // ---------------- CONTRIBUTE A PHOTO ----------------
+  function openContribute(){
+    const wrap = document.createElement('div');
+    wrap.className = 'overlay';
+    wrap.id = 'contribute-overlay';
+    wrap.innerHTML = `
+      <div class="ledger">
+        <h2>Share a Photo</h2>
+        <p class="desc">Send a photograph of me. Nothing appears publicly until it's been reviewed.</p>
+        <label>Your name <span style="opacity:.6;">(optional)</span></label>
+        <input type="text" id="cb-name" placeholder="Anonymous">
+        <label>A note <span style="opacity:.6;">(optional)</span></label>
+        <textarea id="cb-comment" placeholder="Where or when was this taken..." style="min-height:70px;"></textarea>
+        <label>Photo</label>
+        <input type="file" id="cb-file" accept="image/*">
+        <div class="ledger-actions">
+          <div class="err" id="cb-err"></div>
+          <button class="sign-btn" id="cb-submit">Send</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const fileInput = wrap.querySelector('#cb-file');
+    const submitBtn = wrap.querySelector('#cb-submit');
+    const errEl = wrap.querySelector('#cb-err');
+
+    submitBtn.addEventListener('click', async ()=>{
+      const file = fileInput.files[0];
+      if(!file){
+        errEl.textContent = 'Please choose a photo first.';
+        return;
+      }
+      submitBtn.disabled = true;
+      errEl.textContent = 'Sending…';
+
+      const fd = new FormData();
+      fd.append('photo', file);
+      fd.append('name', wrap.querySelector('#cb-name').value.trim());
+      fd.append('comment', wrap.querySelector('#cb-comment').value.trim());
+
+      try{
+        const res = await fetch('/api/submit-photo', { method: 'POST', body: fd });
+        const data = await res.json();
+        if(data.error){
+          errEl.textContent = data.error;
+          submitBtn.disabled = false;
+          return;
+        }
+        wrap.querySelector('.ledger').innerHTML = `
+          <h2>Thank you</h2>
+          <p class="success-msg">Your photo has been sent for review.</p>
+        `;
+        setTimeout(()=> wrap.remove(), 2200);
+      }catch(e){
+        errEl.textContent = 'Could not send right now — try again shortly.';
+        submitBtn.disabled = false;
+      }
+    });
+  }
 
   // ---------------- GUESTBOOK MODAL ----------------
   function openGuestbook(){
@@ -573,33 +662,81 @@
         document.getElementById('admin-err').textContent = result.error === 'unauthorized' ? 'Incorrect code.' : result.error;
         return;
       }
-      renderAdminTable(result.entries);
+      const uploadsResult = await loadPendingUploads(val);
+      renderAdminTable(result.entries, uploadsResult.entries || [], val);
     });
   }
 
-  function renderAdminTable(entries){
+  function renderAdminTable(entries, uploads, code){
     const inner = document.getElementById('admin-inner');
-    if(entries.length === 0){
-      inner.innerHTML = `<h2>Guestbook</h2><p>No entries yet.</p><a class="back-link" onclick="location.reload()">&larr; Back</a>`;
-      return;
+
+    const guestbookSection = entries.length === 0
+      ? `<h2>Guestbook</h2><p>No entries yet.</p>`
+      : `
+        <h2>Guestbook — ${entries.length} entries</h2>
+        <table class="entries">
+          <thead><tr><th>Time</th><th>Email</th><th>Room</th><th>Comment</th><th>Status</th></tr></thead>
+          <tbody>${entries.map(e => `
+            <tr>
+              <td>${new Date(e.ts).toLocaleString()}</td>
+              <td>${escapeHtml(e.email)}</td>
+              <td>${(e.category||'').toUpperCase()}</td>
+              <td>${escapeHtml(e.comment)}</td>
+              <td>${e.flagged ? '<span class="flag">BLOCKED</span>' : 'OK'}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      `;
+
+    const pending = uploads.filter(u => u.status === 'pending');
+    const approved = uploads.filter(u => u.status === 'approved');
+
+    function uploadCard(u){
+      return `
+        <div style="display:flex;gap:1rem;padding:1rem 0;border-bottom:1px solid #cbbf9f;align-items:flex-start;">
+          <img src="/api/uploads?action=file&id=${u.id}&code=${encodeURIComponent(code)}" style="width:110px;height:110px;object-fit:cover;flex-shrink:0;">
+          <div style="flex:1;">
+            <div style="font-size:.75rem;color:#7a6f5c;">${new Date(u.ts).toLocaleString()}</div>
+            <div><strong>${escapeHtml(u.name || 'Anonymous')}</strong></div>
+            <div style="font-size:.85rem;margin:.3rem 0;">${escapeHtml(u.comment || '')}</div>
+            ${u.status === 'pending' ? `
+              <button class="sign-btn" data-approve="${u.id}" style="margin-right:.6rem;">Approve</button>
+              <button class="sign-btn" data-reject="${u.id}" style="background:#a13b2b;">Reject</button>
+            ` : `<span style="color:#2e6b3e;font-size:.8rem;">Approved — save it and move to Drive</span>
+              <button class="sign-btn" data-reject="${u.id}" style="background:#a13b2b;margin-left:.8rem;">Delete</button>`}
+          </div>
+        </div>
+      `;
     }
-    let rows = entries.map(e => `
-      <tr>
-        <td>${new Date(e.ts).toLocaleString()}</td>
-        <td>${escapeHtml(e.email)}</td>
-        <td>${(e.category||'').toUpperCase()}</td>
-        <td>${escapeHtml(e.comment)}</td>
-        <td>${e.flagged ? '<span class="flag">BLOCKED</span>' : 'OK'}</td>
-      </tr>
-    `).join('');
-    inner.innerHTML = `
-      <h2>Guestbook — ${entries.length} entries</h2>
-      <table class="entries">
-        <thead><tr><th>Time</th><th>Email</th><th>Room</th><th>Comment</th><th>Status</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+
+    const uploadsSection = uploads.length === 0
+      ? `<h2 style="margin-top:2.5rem;">Pending Uploads</h2><p>No submissions yet.</p>`
+      : `
+        <h2 style="margin-top:2.5rem;">Pending Uploads — ${pending.length} awaiting review</h2>
+        ${pending.map(uploadCard).join('') || '<p>Nothing waiting right now.</p>'}
+        ${approved.length ? `<h3 style="margin-top:2rem;color:#2e6b3e;">Approved (${approved.length}) — ready to move to Drive</h3>${approved.map(uploadCard).join('')}` : ''}
+      `;
+
+    inner.innerHTML = guestbookSection + uploadsSection + `
       <p style="margin-top:2rem;"><a class="back-link" onclick="location.reload()">&larr; Back to title</a></p>
     `;
+
+    inner.querySelectorAll('[data-approve]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        btn.disabled = true;
+        await reviewUpload(code, btn.dataset.approve, 'approve');
+        const fresh = await loadPendingUploads(code);
+        renderAdminTable(entries, fresh.entries || [], code);
+      });
+    });
+    inner.querySelectorAll('[data-reject]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        btn.disabled = true;
+        await reviewUpload(code, btn.dataset.reject, 'reject');
+        const fresh = await loadPendingUploads(code);
+        renderAdminTable(entries, fresh.entries || [], code);
+      });
+    });
   }
 
   function escapeHtml(str){
