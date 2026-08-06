@@ -9,7 +9,7 @@ const FOLDERS = {
   leisure:   { label: "Leisure",   folderId: "1eAP-Cw3HOp-RzhprhFM1S5hpdfxmz4O1" },
   sport:     { label: "Sport",     folderId: "1sXJd89n6VPgvy2hwNr_g4S1o6CNod2NW" },
   work:      { label: "Work",      folderId: "1LGjJxIU4MrnXEV5DEc-K7e6oqH2XrdJb" },
-  childhood: { label: "Childhood", folderId: "13aiTKaOE0a4Ctz4jAnycdzdoqkVAWETC" },
+  "under-age": { label: "Under-age", folderId: "13aiTKaOE0a4Ctz4jAnycdzdoqkVAWETC" },
   pets:      { label: "Pets",      folderId: "1OIedvh3PRDVVAL1nHh9yEyBIx3kZoAKa" },
   family:    { label: "Family",    folderId: "1TJcItwbFaOQONNEkRJlpvw1jB9ki-nxc" },
   locked:    { label: "Another Life",    folderId: "1NyKWB-3xXpJZ4Pf0EYA67B6joZ415n3b" },
