@@ -269,6 +269,8 @@
       <button class="cat-btn" data-cat="work"><span class="num">III.</span>Work</button>
       <button class="cat-btn" data-cat="childhood"><span class="num">IV.</span>Childhood</button>
       <button class="cat-btn" data-cat="pets"><span class="num">V.</span>Pets</button>
+      <button class="cat-btn" data-cat="family"><span class="num">VI.</span>Family</button>
+      <button class="cat-btn" data-cat="locked"><span class="num">VII.</span>Another Life</button>
     </div>
     <div class="admin-link" id="admin-link">Registrar</div>
   </div>
@@ -299,35 +301,34 @@
 (function(){
 
   // ---------------- DATA ----------------
-  const FOLDERS = {
-    leisure:   { label: "Leisure",   folderId: "1eAP-Cw3HOp-RzhprhFM1S5hpdfxmz4O1" },
-    sport:     { label: "Sport",     folderId: "1sXJd89n6VPgvy2hwNr_g4S1o6CNod2NW" },
-    work:      { label: "Work",      folderId: "1LGjJxIU4MrnXEV5DEc-K7e6oqH2XrdJb" },
-    childhood: { label: "Childhood", folderId: "13aiTKaOE0a4Ctz4jAnycdzdoqkVAWETC" },
-    pets:      { label: "Pets",      folderId: "1OIedvh3PRDVVAL1nHh9yEyBIx3kZoAKa" }
+  // Folder IDs, the Drive API key, and the admin code all live server-side now
+  // (functions/api/photos.js and functions/api/guestbook.js) — nothing secret
+  // ships in this file, so viewing page source reveals none of it.
+  const ROOMS = {
+    leisure:   { label: "Leisure" },
+    sport:     { label: "Sport" },
+    work:      { label: "Work" },
+    childhood: { label: "Childhood" },
+    pets:      { label: "Pets" },
+    locked:    { label: "Another Life", protected: true },
+    // family:  add once its folder is wired up server-side
   };
 
-  // Restricted to photo-archive-3z4.pages.dev/* — see Google Cloud Console > Credentials
-  const DRIVE_API_KEY = "AIzaSyCICmLJb14gT4KYGbMLmAO2ZiqdTVuPK8g";
-
-  async function fetchFolderImages(folderId){
-    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed = false`);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&orderBy=name&key=${DRIVE_API_KEY}`;
+  async function fetchFolderImages(room, password){
+    let url = `/api/photos?room=${encodeURIComponent(room)}`;
+    if(password) url += `&password=${encodeURIComponent(password)}`;
     try{
       const res = await fetch(url);
       const data = await res.json();
       if(data.error){
-        console.error('Drive API error', data.error);
-        return [];
+        return { error: data.error };
       }
-      return (data.files || []).map(f => f.id);
+      return { ids: data.ids || [] };
     }catch(e){
-      console.error('Drive fetch failed', e);
-      return [];
+      return { error: 'fetch failed' };
     }
   }
 
-  const ADMIN_CODE = "94172079";
   const BANNED = /\b(petrol|kacela)\b/i;
   const MIN_WORDS = 15;
 
@@ -380,11 +381,22 @@
   }
 
   // ---------------- TITLE ----------------
+  function enterRoom(cat){
+    const room = ROOMS[cat];
+    if(room && room.protected){
+      const pw = window.prompt('This room is locked. Enter the password:');
+      if(pw === null) return; // cancelled
+      openGallery(cat, pw);
+    } else {
+      openGallery(cat);
+    }
+  }
+
   document.querySelectorAll('.cat-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const cat = btn.dataset.cat;
       if(hasSigned()){
-        openGallery(cat);
+        enterRoom(cat);
       } else {
         pendingCategory = cat;
         openGuestbook();
@@ -448,7 +460,7 @@
         return;
       }
       wrap.remove();
-      openGallery(pendingCategory);
+      enterRoom(pendingCategory);
     });
   }
 
@@ -461,17 +473,29 @@
   }
 
   // ---------------- GALLERY ----------------
-  async function openGallery(cat){
-    const folder = FOLDERS[cat];
-    document.getElementById('gallery-eyebrow').textContent = 'Room ' + ({leisure:'I',sport:'II',work:'III',childhood:'IV',pets:'V'})[cat];
-    document.getElementById('gallery-title').textContent = folder.label;
+  async function openGallery(cat, password){
+    const room = ROOMS[cat];
+    document.getElementById('gallery-eyebrow').textContent = 'Room ' + ({leisure:'I',sport:'II',work:'III',childhood:'IV',pets:'V',locked:'VI',family:'VII'})[cat];
+    document.getElementById('gallery-title').textContent = room.label;
     document.getElementById('gallery-count').textContent = 'Loading…';
     const grid = document.getElementById('grid');
     grid.innerHTML = '<p style="color:var(--paper);opacity:.6;padding:2rem;">Loading photographs…</p>';
     show('gallery');
 
-    const ids = await fetchFolderImages(folder.folderId);
+    const result = await fetchFolderImages(cat, password);
 
+    if(result.error === 'wrong password'){
+      document.getElementById('gallery-count').textContent = '';
+      grid.innerHTML = '<p style="color:#d15b3f;padding:2rem;">Incorrect password.</p>';
+      return;
+    }
+    if(result.error){
+      document.getElementById('gallery-count').textContent = '';
+      grid.innerHTML = '<p style="color:#d15b3f;padding:2rem;">Could not load this room right now.</p>';
+      return;
+    }
+
+    const ids = result.ids;
     document.getElementById('gallery-count').textContent = ids.length + ' photograph' + (ids.length === 1 ? '' : 's');
     grid.innerHTML = '';
 
@@ -483,7 +507,7 @@
     ids.forEach((id, i)=>{
       const div = document.createElement('div');
       div.className = 'thumb';
-      div.innerHTML = `<img src="${driveUrl(id, 500)}" loading="lazy" alt="${folder.label} ${i+1}"><div class="tag">${folder.label.toUpperCase()} — ${String(i+1).padStart(2,'0')}</div>`;
+      div.innerHTML = `<img src="${driveUrl(id, 500)}" loading="lazy" alt="${room.label} ${i+1}"><div class="tag">${room.label.toUpperCase()} — ${String(i+1).padStart(2,'0')}</div>`;
       div.addEventListener('click', ()=> openLightbox(id));
       grid.appendChild(div);
     });
@@ -512,14 +536,10 @@
     show('admin');
     document.getElementById('admin-go').addEventListener('click', async ()=>{
       const val = document.getElementById('admin-code').value.trim();
-      if(val !== ADMIN_CODE){
-        document.getElementById('admin-err').textContent = 'Incorrect code.';
-        return;
-      }
       document.getElementById('admin-err').textContent = 'Loading…';
       const result = await loadAllEntries(val);
       if(result.error){
-        document.getElementById('admin-err').textContent = result.error;
+        document.getElementById('admin-err').textContent = result.error === 'unauthorized' ? 'Incorrect code.' : result.error;
         return;
       }
       renderAdminTable(result.entries);
