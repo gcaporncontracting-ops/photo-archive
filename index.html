@@ -267,7 +267,7 @@
       <button class="cat-btn" data-cat="leisure"><span class="num">I.</span>Leisure</button>
       <button class="cat-btn" data-cat="sport"><span class="num">II.</span>Sport</button>
       <button class="cat-btn" data-cat="work"><span class="num">III.</span>Work</button>
-      <button class="cat-btn" data-cat="childhood"><span class="num">IV.</span>Childhood</button>
+      <button class="cat-btn" data-cat="childhood"><span class="num">IV.</span>Under-age</button>
       <button class="cat-btn" data-cat="pets"><span class="num">V.</span>Pets</button>
       <button class="cat-btn" data-cat="family"><span class="num">VI.</span>Family</button>
       <button class="cat-btn" data-cat="locked"><span class="num">VII.</span>Another Life</button>
@@ -310,8 +310,8 @@
     work:      { label: "Work" },
     childhood: { label: "Childhood" },
     pets:      { label: "Pets" },
+    family:    { label: "Family" },
     locked:    { label: "Another Life", protected: true },
-    // family:  add once its folder is wired up server-side
   };
 
   async function fetchFolderImages(room, password){
@@ -384,7 +384,7 @@
   function enterRoom(cat){
     const room = ROOMS[cat];
     if(room && room.protected){
-      const pw = window.prompt('This room is locked. Enter the password:');
+      const pw = window.prompt('This room is locked. Enter the password. Hint : what does Gavin feel?:');
       if(pw === null) return; // cancelled
       openGallery(cat, pw);
     } else {
