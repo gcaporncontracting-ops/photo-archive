@@ -262,7 +262,7 @@
   <div id="title-screen" class="screen">
     <div class="eyebrow">A Private Collection</div>
     <h1 class="title">The Archive</h1>
-    <div class="subtitle">Sign the book to enter.</div>
+    <div class="subtitle">Sign the book and enter.</div>
     <div class="categories">
       <button class="cat-btn" data-cat="leisure"><span class="num">I.</span>Leisure</button>
       <button class="cat-btn" data-cat="sport"><span class="num">II.</span>Sport</button>
@@ -308,7 +308,7 @@
     leisure:   { label: "Leisure" },
     sport:     { label: "Sport" },
     work:      { label: "Work" },
-    childhood: { label: "Childhood" },
+    childhood: { label: "Under-age" },
     pets:      { label: "Pets" },
     family:    { label: "Family" },
     locked:    { label: "Another Life", protected: true },
@@ -384,12 +384,43 @@
   function enterRoom(cat){
     const room = ROOMS[cat];
     if(room && room.protected){
-      const pw = window.prompt('This room is locked. Enter the password. Hint : what does Gavin feel?:');
-      if(pw === null) return; // cancelled
-      openGallery(cat, pw);
+      openPasswordPrompt(cat, room.label);
     } else {
       openGallery(cat);
     }
+  }
+
+  function openPasswordPrompt(cat, label){
+    const wrap = document.createElement('div');
+    wrap.className = 'overlay';
+    wrap.id = 'pw-overlay';
+    wrap.innerHTML = `
+      <div class="ledger">
+        <h2>${label}</h2>
+        <p class="desc">Some rooms stay shut for a reason. What does he feel? Enter the password to continue.</p>
+        <label>Password</label>
+        <input type="password" id="pw-input" placeholder="••••••••">
+        <div class="err" id="pw-err" style="margin-top:.8rem;"></div>
+        <div class="ledger-actions">
+          <div></div>
+          <button class="sign-btn" id="pw-submit">Enter</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const input = wrap.querySelector('#pw-input');
+    const submitBtn = wrap.querySelector('#pw-submit');
+    const errEl = wrap.querySelector('#pw-err');
+    input.focus();
+
+    function submit(){
+      const pw = input.value;
+      wrap.remove();
+      openGallery(cat, pw);
+    }
+    submitBtn.addEventListener('click', submit);
+    input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submit(); });
   }
 
   document.querySelectorAll('.cat-btn').forEach(btn=>{
