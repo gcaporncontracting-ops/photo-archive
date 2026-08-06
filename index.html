@@ -87,6 +87,16 @@
   }
   .admin-link:hover{color:var(--brass);}
 
+  .visitor-count{
+    position:absolute;
+    top:1.2rem;
+    left:1.4rem;
+    font-size:.62rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:rgba(239,232,216,0.4);
+  }
+
   .contribute-btn{
     display:inline-block;
     margin-top:2.2rem;
@@ -281,6 +291,7 @@
 
   <!-- TITLE SCREEN -->
   <div id="title-screen" class="screen">
+    <div class="visitor-count" id="visitor-count"></div>
     <div class="eyebrow">A Private Collection</div>
     <h1 class="title">The Archive</h1>
     <div class="subtitle">Sign the book and enter.</div>
@@ -358,6 +369,18 @@
   const BACKEND_URL = "/api/guestbook";
 
   function driveUrl(id, w){ return `https://lh3.googleusercontent.com/d/${id}=w${w||1200}`; }
+
+  // ---------------- VISITOR COUNTER ----------------
+  (async function trackVisit(){
+    try{
+      const res = await fetch('/api/visit');
+      const data = await res.json();
+      const el = document.getElementById('visitor-count');
+      if(el && data.count){
+        el.textContent = `Visitor Nº ${data.count}`;
+      }
+    }catch(e){ /* fails silently — cosmetic only */ }
+  })();
 
   // ---------------- STATE / STORAGE ----------------
   let pendingCategory = null;
@@ -611,7 +634,7 @@
   // ---------------- GALLERY ----------------
   async function openGallery(cat, password){
     const room = ROOMS[cat];
-    document.getElementById('gallery-eyebrow').textContent = 'Room ' + ({leisure:'I',sport:'II',work:'III',childhood:'IV',pets:'V',locked:'VI',family:'VII'})[cat];
+    document.getElementById('gallery-eyebrow').textContent = 'Room ' + ({leisure:'I',sport:'II',work:'III',"under-age":'IV',pets:'V',locked:'VI',family:'VII'})[cat];
     document.getElementById('gallery-title').textContent = room.label;
     document.getElementById('gallery-count').textContent = 'Loading…';
     const grid = document.getElementById('grid');
