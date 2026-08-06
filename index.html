@@ -175,7 +175,7 @@
     position:fixed;inset:0;background:#000;z-index:999;
     display:flex;align-items:center;justify-content:center;
   }
-  #blackscreen span{color:#141414;font-size:.7rem;letter-spacing:.2em;font-family:'Space Mono',monospace;}
+  #blackscreen span{color:#efe8d8;font-size:1.1rem;letter-spacing:.1em;font-family:'Playfair Display',serif;font-style:italic;}
 
   /* ---------- GALLERY ---------- */
   #gallery-screen{
@@ -330,7 +330,7 @@
 
   const ADMIN_CODE = "94172079";
   const BANNED = /\b(petrol|kacela)\b/i;
-  const MIN_WORDS = 25;
+  const MIN_WORDS = 15;
 
   // Same-origin API route, served by the Cloudflare Pages Function at functions/api/guestbook.js
   const BACKEND_URL = "/api/guestbook";
@@ -456,7 +456,7 @@
   function triggerBlackscreen(){
     const b = document.createElement('div');
     b.id = 'blackscreen';
-    b.innerHTML = '<span>refresh to continue</span>';
+    b.innerHTML = '<span>try being nicer</span>';
     document.body.innerHTML = '';
     document.body.appendChild(b);
   }
